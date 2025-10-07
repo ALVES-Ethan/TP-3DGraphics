@@ -1,31 +1,31 @@
 using System.Collections.Generic;
-using UnityEditor;
 using UnityEngine;
 
 public class GeometryRenderer : MonoBehaviour
 {
-    enum Mode
+    public enum Mode
     {
         None,
-        ColoredTriangle,
-        MonochromeElipse
+        Triangle,
+        Circle
     }
 
-    [SerializeField] bool debugging = true;
+    [SerializeField] bool debug = false;
+    [SerializeField] public Mode mode = Mode.None;
 
-    [Space]
-
-    [Header("Realtime Params")]
-    [SerializeField] Mode mode = Mode.ColoredTriangle;
-    [SerializeField] bool spin = true;
+    [SerializeField] bool rotate = false;
     [SerializeField] Vector3 axis = Vector3.forward;
+
+    [Range(8, 256)]
+    [SerializeField] int resolution = 16;
 
     Mesh mesh;
     Material material;
 
     float yaw, pitch, roll;
     Matrix4x4 matrix;
-    Mode previous;
+    Mode previous_mode;
+    int previous_resolution;
 
     void ConfigureMaterial(string shader)
     {
@@ -72,33 +72,34 @@ public class GeometryRenderer : MonoBehaviour
     }
     void ConfigureMode_MonochromeElipse()
     {
-        ConfigureMaterial("Unlit/Color");
-        KeyValuePair<List<int>, List<Vector3>> circle = GenerateCircle(Vector3.zero, 2.0f, 196);
+        ConfigureMaterial("Unlit/VertColor");
+        CircleData circle = GenerateCircle(Vector3.zero, 2.0f, resolution);
         ConfigureMesh(
-            circle.Value.ToArray(),
-            circle.Key.ToArray()
+            circle.positions.ToArray(),
+            circle.indices.ToArray(),
+            circle.colors.ToArray()
         );
     }
 
     void ConfigureMode()
     {
-        if (mode == previous) return;
+        if (mode == previous_mode) return;
 
         switch (mode)
         {
             case Mode.None:
                 ConfigureMode_None();
                 break;
-            case Mode.ColoredTriangle:
+            case Mode.Triangle:
                 ConfigureMode_ColoredTriangle();
                 break;
-            case Mode.MonochromeElipse:
+            case Mode.Circle:
                 ConfigureMode_MonochromeElipse();
                 break;
             default:
                 break;
         }
-        previous = mode;
+        previous_mode = mode;
     }
 
     void Awake()
@@ -108,7 +109,32 @@ public class GeometryRenderer : MonoBehaviour
         ConfigureMode();
     }
 
-    public KeyValuePair<List<int>, List<Vector3>> GenerateCircle(Vector3 center, float radius, int resolution)
+    public struct CircleData
+    {
+        public List<int> indices;
+        public List<Vector3> positions;
+        public List<Color> colors;
+
+        public CircleData(List<int> indices, List<Vector3> positions, List<Color> colors)
+        {
+            this.indices = indices;
+            this.positions = positions;
+            this.colors = colors;
+        }
+    }
+
+    Color GenerateRandomColor()
+    {
+        Color color;
+        color.r = Random.Range(0, 255) / 255.0f;
+        color.g = Random.Range(0, 255) / 255.0f;
+        color.b = Random.Range(0, 255) / 255.0f;
+        color.a = 1.0f;
+
+        return color;
+    }
+
+    public CircleData GenerateCircle(Vector3 center, float radius, int resolution)
     {
         float pas = 360.0f / (float)resolution;
 
@@ -138,16 +164,24 @@ public class GeometryRenderer : MonoBehaviour
 
         indices.Reverse();
 
-        KeyValuePair<List<int>, List<Vector3>> pairs = new KeyValuePair<List<int>, List<Vector3>>(indices, verts);
+        List<Color> colors = new List<Color>();
 
-        return pairs;
+        for (int i = 0; i < resolution; i+=3)
+        {
+            Color color = GenerateRandomColor();
+            colors.Add(color);
+            colors.Add(color);
+            colors.Add(color);
+        }
+
+        return new CircleData(indices, verts, colors);
     }
 
     void Update()
     {
         ConfigureMode();
 
-        if (!spin) return;
+        if (!rotate) return;
 
         float scaledDeltaTime = Time.deltaTime * 64;
 
@@ -160,20 +194,51 @@ public class GeometryRenderer : MonoBehaviour
 
     void OnPostRender()
     {
+        if(mesh == null || material == null) return;
         material.SetPass(0);
         Graphics.DrawMeshNow(mesh, matrix);
     }
 
     void OnDrawGizmos()
     {
-        if (!debugging) return;
+        if (mesh == null || material == null) return;
+
+        if (!debug) return;
         if (!Application.isPlaying) return;
 
         Gizmos.color = Color.green;
 
-        foreach (Vector3 vertex in mesh.vertices)
+        Vector3[] array = new Vector3[mesh.vertices.Length];
+
+        for (int i = 0; i < mesh.vertices.Length; i++)
         {
-            Gizmos.DrawSphere(vertex, 0.05f);
+            Vector3 vertex = mesh.vertices[i];
+            Vector4 converted = new Vector4(vertex.x, vertex.y, vertex.z, 1);
+            converted = matrix * converted;
+
+            vertex = new Vector3(converted.x, converted.y, converted.z);
+
+            //mesh.vertices[i] = vertex;
+            array.SetValue(vertex, i);
+
+            Gizmos.DrawSphere(array[i], 0.05f);
+        }
+
+        Gizmos.color = Color.blue;
+
+        for (int i = 0; i < mesh.triangles.Length; i+=3)
+        {
+            int firstIndex = mesh.triangles[i];
+            int secondIndex = mesh.triangles[i+1];
+            int thirdIndex = mesh.triangles[i+2];
+
+            Vector3 firstPos = array[firstIndex];
+            Vector3 secondPos = array[secondIndex];
+            Vector3 thirdPos = array[thirdIndex];
+
+            Gizmos.DrawLine(firstPos, secondPos);
+            Gizmos.DrawLine(secondPos, thirdPos);
+            Gizmos.DrawLine(thirdPos, firstPos);
         }
     }
 }
