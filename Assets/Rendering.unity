@@ -215,11 +215,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a6ccf9ddb48da8e4caa56e78f63112b8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  regenerate: 0
   debug: 0
   mode: 2
   rotate: 0
   axis: {x: 0, y: 0, z: 1}
-  resolution: 64
+  resolution: 196
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

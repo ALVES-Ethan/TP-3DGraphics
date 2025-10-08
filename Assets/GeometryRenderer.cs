@@ -9,6 +9,7 @@ public class GeometryRenderer : MonoBehaviour
         Triangle,
         Circle
     }
+    [SerializeField] bool regenerate;
 
     [SerializeField] bool debug = false;
     [SerializeField] public Mode mode = Mode.None;
@@ -24,12 +25,11 @@ public class GeometryRenderer : MonoBehaviour
 
     float yaw, pitch, roll;
     Matrix4x4 matrix;
+
     Mode previous_mode;
-    int previous_resolution;
 
     void ConfigureMaterial(string shader)
     {
-
         material = new Material(Shader.Find(shader));
         material.color = Color.white;
     }
@@ -83,7 +83,7 @@ public class GeometryRenderer : MonoBehaviour
 
     void ConfigureMode()
     {
-        if (mode == previous_mode) return;
+        if (mode == previous_mode && !regenerate) return;
 
         switch (mode)
         {
@@ -100,6 +100,7 @@ public class GeometryRenderer : MonoBehaviour
                 break;
         }
         previous_mode = mode;
+        regenerate = false;
     }
 
     void Awake()
@@ -138,43 +139,57 @@ public class GeometryRenderer : MonoBehaviour
     {
         float pas = 360.0f / (float)resolution;
 
-        List<Vector3> verts = new List<Vector3>();
-
-        verts.Add(center);
-
+        List<Vector3> vertices = new List<Vector3>();
+        vertices.Add(center);
         for (int i = 0; i <= resolution; i++)
         {
             float x = Mathf.Cos(Mathf.Deg2Rad * (pas * i)) * radius;
             float y = Mathf.Sin(Mathf.Deg2Rad * (pas * i)) * radius;
             float z = 0;
 
-            verts.Add(new Vector3(x, y, z));
+            vertices.Add(new Vector3(x, y, z));
         }
 
         List<int> indices = new List<int>();
-
-        int lastIndex = 1;
-        for (int i = 0; i < resolution; i++)
+        for (int i = 1; i < resolution + 1; i++)
         {
+            indices.Add(i + 1);
+            indices.Add(i);
             indices.Add(0);
-            indices.Add(lastIndex);
-            indices.Add(lastIndex + 1);
-            lastIndex += 1;
         }
-
-        indices.Reverse();
-
+        
         List<Color> colors = new List<Color>();
+        //int count = 0;
+        //for (int i = 0; i < resolution; i+=count)
+        //{
+        //    Color color = GenerateRandomColor();
+        //    count = (i == 0) ? 4 : 3;
 
-        for (int i = 0; i < resolution; i+=3)
+        //    for (int j = 0; j < count; j++)
+        //    {
+        //        colors.Add(color);
+        //    }
+        //}
+
+        int index = 0;
+        while(index <= resolution)
         {
             Color color = GenerateRandomColor();
-            colors.Add(color);
-            colors.Add(color);
-            colors.Add(color);
+
+            int count = (index == 0) ? 4 : 3;
+
+            for (int i = 0; i < count; i++)
+            {
+                colors.Add(color);
+            }
+
+            index += count;
         }
 
-        return new CircleData(indices, verts, colors);
+        Debug.Log($"Verts : {vertices.Count}");
+        Debug.Log($"Colors : {colors.Count}");
+
+        return new CircleData(indices, vertices, colors);
     }
 
     void Update()
@@ -218,7 +233,6 @@ public class GeometryRenderer : MonoBehaviour
 
             vertex = new Vector3(converted.x, converted.y, converted.z);
 
-            //mesh.vertices[i] = vertex;
             array.SetValue(vertex, i);
 
             Gizmos.DrawSphere(array[i], 0.05f);

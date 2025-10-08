@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEngine;
 
 [CustomEditor(typeof(GeometryRenderer))]
 public class GeometryRendererEditor : Editor
@@ -11,6 +12,7 @@ public class GeometryRendererEditor : Editor
     SerializedProperty rotate;
     SerializedProperty axis;
 
+    SerializedProperty regenerate;
     GeometryRenderer component => (GeometryRenderer)target;
 
     void OnEnable()
@@ -22,6 +24,8 @@ public class GeometryRendererEditor : Editor
 
         rotate = serializedObject.FindProperty("rotate");
         axis = serializedObject.FindProperty("axis");
+        
+        regenerate = serializedObject.FindProperty("regenerate");
     }
 
     public override void OnInspectorGUI()
@@ -65,6 +69,12 @@ public class GeometryRendererEditor : Editor
 
         rotate.boolValue = EditorGUILayoutExtensions.BetterToggle("Rotate", rotate.boolValue);
         EditorGUILayout.PropertyField(axis);
+
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical("box");
+
+        regenerate.boolValue = GUILayout.Button("Regenerate");
 
         EditorGUILayout.EndVertical();
     }
